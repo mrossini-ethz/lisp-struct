@@ -49,18 +49,18 @@
         uint
         (- uint maxval))))
 
-;; Produces code to extract an unsigned integer of given length and byte order from an array of bytes at the given position.
+;; Produces code to unpack an unsigned integer of given length and byte order from an array of bytes at the given position.
 ;; This function will be used in a macro expansion.
-(defun extract-unsigned (array pos length byte-order)
+(defun unpack-unsigned (array pos length byte-order)
   `(+ ,@(loop for i below length
               for index = (* i 8)
               for shift = (case byte-order (:little-endian (+ pos i)) (:big-endian (- (+ pos length) i 1)) (t (error "Invalid byte order specified")))
               collect `(ash (elt ,array ,shift) ,index))))
 
-;; Produces code to extract a signed integer of given length and byte order from an array of bytes at the given position.
+;; Produces code to unpack a signed integer of given length and byte order from an array of bytes at the given position.
 ;; This function will be used in a macro expansion.
-(defun extract-signed (array pos length byte-order)
-  `(unsigned-to-signed ,(extract-unsigned array pos length byte-order) ,length))
+(defun unpack-signed (array pos length byte-order)
+  `(unsigned-to-signed ,(unpack-unsigned array pos length byte-order) ,length))
 
 ;; --- Parseq rules ----------------------------------------------------------------
 
@@ -94,8 +94,8 @@
      (:lambda (x)
        (declare (ignore x))
        ,(case signedness
-         (:unsigned `(extract-unsigned array-var (post-incf index ,length) ,length align))
-         (:signed `(extract-signed array-var (post-incf index ,length) ,length align))
+         (:unsigned `(unpack-unsigned array-var (post-incf index ,length) ,length align))
+         (:signed `(unpack-signed array-var (post-incf index ,length) ,length align))
          (t (error "Invalid signedness specified!"))))))
 
 ;; Use the helper macro to define the integer type rules
@@ -125,5 +125,5 @@
 
 ;; Test the code
 (let ((test-data #(#xF1 #xF2 #xF3 #xF4 #xF5 #xF6 #xF7 #xF8 #xF9 #xFA #xFB #xFC #xFD #xFE #xFF)))
-  ;; Extract the data
+  ;; Unpack the data
   (unpack "<hBBHbq" test-data))
