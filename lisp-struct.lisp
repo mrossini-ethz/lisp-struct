@@ -35,19 +35,31 @@
        (incf ,place ,delta)
        ,var)))
 
+;; Checks whether the given integer fits into the specified number of bytes.
+(defun unsigned-boundcheck (integer bytes)
+  (and (>= integer 0) (< integer (ash 1 (* 8 bytes)))))
+
+;; Checks whether the given integer fits into the specified number of bytes when
+;; using two's complement.
+(defun signed-boundcheck (integer bytes)
+  (let ((maxval (ash 1 (1- (* 8 bytes)))))
+    (and (>= integer (- maxval)) (< integer maxval))))
+
 ;; Function that converts an unsigned integer uint into a signed integer by interpreting
 ;; the unsigned value as the two's complement of the signed value.
 (defun unsigned-to-signed (uint length)
-  ;; Check data types
-  (check-type length (integer 1))
-  (check-type uint (integer 0))
   ;; Check integer size
   (let ((maxval (ash 1 (* 8 length))))
-    (when (>= uint maxval)
-      (error "Integer conversion error: value ~a exceeds integer size (~a)!" uint length))
-    (if (< uint (/ maxval 2))
+    (if (< uint (ash maxval -1))
         uint
         (- uint maxval))))
+
+;; Function that converts a signed integer sint into an unsigned integer by encoding the
+;; signed value usig two's complement.
+(defun signed-to-unsigned (sint length)
+  (if (minusp sint)
+      (- (ash 1 (* 8 length)) (abs sint))
+      sint))
 
 ;; Produces code to unpack an unsigned integer of given length and byte order from an array of bytes at the given position.
 ;; This function will be used in a macro expansion.
@@ -61,6 +73,17 @@
 ;; This function will be used in a macro expansion.
 (defun unpack-signed (array pos length byte-order)
   `(unsigned-to-signed ,(unpack-unsigned array pos length byte-order) ,length))
+
+;; Produces code to pack an unsigned integer of given length into an array of bytes in given byte order and at the given position.
+;; This function will be used in a macro expansion.
+(defun pack-unsigned (array pos length byte-order)
+  (let ((value (gensym)))
+    (loop for i below length
+          for index = (* i 8)
+          for shift = (case byte-order (:little-endian (+ pos i)) (:big-endian (- (+ pos length) i 1)) (t (error "Invalid byte order specified")))
+          collect `((elt ,array ,shift) (ldb (byte 8 ,index) ,value))
+            into assignments
+          finally (return (list value `(boundcheck-unsigned ,value ,length) assignments)))))
 
 ;; --- Parseq rules ----------------------------------------------------------------
 
