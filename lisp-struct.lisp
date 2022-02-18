@@ -87,22 +87,22 @@
 
 ;; --- Parseq rules ----------------------------------------------------------------
 
-;; Parseq rule for generating the code that processes the data
-(defrule format (array-var) (and (? alignment) (* (format-char array-var)))
+;; Parseq rule for generating the code that processes the data for unpacking
+(defrule unpack-format (array-var) (and (? alignment) (* (unpack-format-char array-var)))
   (:let (align :little-endian) (index 0))
   (:lambda (a f)
     (declare (ignore a))
     `(list ,@f)))
 
-;; Parseq rule for processing the individual data type elements of the format string
-(defrule format-char (array-var) (or (unsigned-char array-var)
-                                     (signed-char array-var)
-                                     (unsigned-short array-var)
-                                     (signed-short array-var)
-                                     (unsigned-long array-var)
-                                     (signed-long array-var)
-                                     (unsigned-long-long array-var)
-                                     (signed-long-long array-var)))
+;; Parseq rule for unpacking the individual data type elements of the format string
+(defrule unpack-format-char (array-var) (or (unpack-unsigned-char array-var)
+                                            (unpack-signed-char array-var)
+                                            (unpack-unsigned-short array-var)
+                                            (unpack-signed-short array-var)
+                                            (unpack-unsigned-long array-var)
+                                            (unpack-signed-long array-var)
+                                            (unpack-unsigned-long-long array-var)
+                                            (unpack-signed-long-long array-var)))
 
 ;; Parseq rule for processing the byte order in the format string
 (defrule alignment () (or #\< #\>)
@@ -111,7 +111,7 @@
     (if (char= x #\<) (setf align :little-endian) (setf align :big-endian)) x))
 
 ;; Macro that helps defining rules for the different integer types
-(defmacro define-integer-rule (character length signedness variable)
+(defmacro define-integer-unpack-rule (character length signedness variable)
   `(defrule ,variable (array-var) ,character
      (:external align index)
      (:lambda (x)
@@ -122,14 +122,14 @@
          (t (error "Invalid signedness specified!"))))))
 
 ;; Use the helper macro to define the integer type rules
-(define-integer-rule #\Q 8 :unsigned unsigned-long-long)
-(define-integer-rule #\q 8 :signed signed-long-long)
-(define-integer-rule #\L 4 :unsigned unsigned-long)
-(define-integer-rule #\l 4 :signed signed-long)
-(define-integer-rule #\H 2 :unsigned unsigned-short)
-(define-integer-rule #\h 2 :signed signed-short)
-(define-integer-rule #\B 1 :unsigned unsigned-char)
-(define-integer-rule #\b 1 :signed signed-char)
+(define-integer-unpack-rule #\Q 8 :unsigned unpack-unsigned-long-long)
+(define-integer-unpack-rule #\q 8 :signed unpack-signed-long-long)
+(define-integer-unpack-rule #\L 4 :unsigned unpack-unsigned-long)
+(define-integer-unpack-rule #\l 4 :signed unpack-signed-long)
+(define-integer-unpack-rule #\H 2 :unsigned unpack-unsigned-short)
+(define-integer-unpack-rule #\h 2 :signed unpack-signed-short)
+(define-integer-unpack-rule #\B 1 :unsigned unpack-unsigned-char)
+(define-integer-unpack-rule #\b 1 :signed unpack-signed-char)
 
 ;; --- Main macro definitions ------------------------------------------------------
 
@@ -142,7 +142,7 @@
   (let ((array-var (gensym)))
     `(let ((,array-var ,data))
        ;; Generate the code for unpacking using the parseq rule
-       ,(parseq `(format ,array-var) format))))
+       ,(parseq `(unpack-format ,array-var) format))))
 
 ;; --- Test area -------------------------------------------------------------------
 
