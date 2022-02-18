@@ -118,6 +118,12 @@
   (:let (align :little-endian) (index 0))
   (:choose 1))
 
+;; Parseq rule for processing the byte order in the format string
+(defrule alignment () (or #\< #\>)
+  (:external align)
+  (:lambda (x)
+    (if (char= x #\<) (setf align :little-endian) (setf align :big-endian)) x))
+
 ;; Parseq rule for unpacking the individual data type elements of the format string
 (defrule unpack-format-char (array-var) (or (unpack-unsigned-char array-var)
                                             (unpack-signed-char array-var)
@@ -137,12 +143,6 @@
                                  (pack-signed-long)
                                  (pack-unsigned-long-long)
                                  (pack-signed-long-long)))
-
-;; Parseq rule for processing the byte order in the format string
-(defrule alignment () (or #\< #\>)
-  (:external align)
-  (:lambda (x)
-    (if (char= x #\<) (setf align :little-endian) (setf align :big-endian)) x))
 
 ;; Macro that helps defining unpack rules for the different integer types
 (defmacro define-integer-unpack-rule (character length signedness variable)
