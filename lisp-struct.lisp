@@ -35,16 +35,6 @@
        (incf ,place ,delta)
        ,var)))
 
-;; Checks whether the given integer fits into the specified number of bytes.
-(defun unsigned-boundcheck (integer bytes)
-  (and (>= integer 0) (< integer (ash 1 (* 8 bytes)))))
-
-;; Checks whether the given integer fits into the specified number of bytes when
-;; using two's complement.
-(defun signed-boundcheck (integer bytes)
-  (let ((maxval (ash 1 (1- (* 8 bytes)))))
-    (and (>= integer (- maxval)) (< integer maxval))))
-
 ;; Function that converts an unsigned integer uint into a signed integer by interpreting
 ;; the unsigned value as the two's complement of the signed value.
 (defun unsigned-to-signed (uint length)
@@ -61,6 +51,20 @@
       (- (ash 1 (* 8 length)) (abs sint))
       sint))
 
+;; Checks whether the given integer fits into the specified number of bytes.
+(defun unsigned-boundcheck (integer bytes)
+  (unless (and (>= integer 0) (< integer (ash 1 (* 8 bytes))))
+    (error "struct:pack - unsigned integer bounds exceeded."))
+  integer)
+
+;; Checks whether the given integer fits into the specified number of bytes when
+;; using two's complement.
+(defun signed-boundcheck (integer bytes)
+  (let ((maxval (ash 1 (1- (* 8 bytes)))))
+    (unless (and (>= integer (- maxval)) (< integer maxval))
+      (error "struct:pack - signed integer bounds exceeded."))
+    (signed-to-unsigned integer bytes)))
+
 ;; Produces code to unpack an unsigned integer of given length and byte order from an array of bytes at the given position.
 ;; This function will be used in a macro expansion.
 (defun unpack-unsigned (array pos length byte-order)
@@ -76,23 +80,35 @@
 
 ;; Produces code to pack an unsigned integer of given length into an array of bytes in given byte order and at the given position.
 ;; This function will be used in a macro expansion.
-(defun pack-unsigned (array pos length byte-order)
+(defun pack-unsigned (pos length byte-order)
   (let ((value (gensym)))
     (loop for i below length
-          for index = (* i 8)
-          for shift = (case byte-order (:little-endian (+ pos i)) (:big-endian (- (+ pos length) i 1)) (t (error "Invalid byte order specified")))
-          collect `((elt ,array ,shift) (ldb (byte 8 ,index) ,value))
-            into assignments
-          finally (return (list value `(boundcheck-unsigned ,value ,length) assignments)))))
+          for index = (case byte-order (:little-endian (* i 8)) (:big-endian (* (- length i 1) 8)) (t (error "Invalid byte order specified")))
+          collect `(ldb (byte 8 ,index) ,value)
+            into results
+          finally (return `(,value (unsigned-boundcheck ,value ,length) ,results)))))
+
+;; Produces code to pack a signed integer of given length into an array of bytes in given byte order and at the given position.
+;; This function will be used in a macro expansion.
+(defun pack-signed (pos length byte-order)
+  (let ((value (gensym)))
+    (loop for i below length
+          for index = (case byte-order (:little-endian (* i 8)) (:big-endian (* (- length i 1) 8)) (t (error "Invalid byte order specified")))
+          collect `(ldb (byte 8 ,index) ,value)
+            into results
+          finally (return `(,value (signed-boundcheck ,value ,length) ,results)))))
 
 ;; --- Parseq rules ----------------------------------------------------------------
 
 ;; Parseq rule for generating the code that processes the data for unpacking
 (defrule unpack-format (array-var) (and (? alignment) (* (unpack-format-char array-var)))
   (:let (align :little-endian) (index 0))
-  (:lambda (a f)
-    (declare (ignore a))
-    `(list ,@f)))
+  (:choose 1))
+
+;; Parseq rule for generating the code that processes the data for packing
+(defrule pack-format () (and (? alignment) (* (pack-format-char)))
+  (:let (align :little-endian) (index 0))
+  (:choose 1))
 
 ;; Parseq rule for unpacking the individual data type elements of the format string
 (defrule unpack-format-char (array-var) (or (unpack-unsigned-char array-var)
@@ -104,13 +120,23 @@
                                             (unpack-unsigned-long-long array-var)
                                             (unpack-signed-long-long array-var)))
 
+;; Parseq rule for packing the individual data type elements of the format string
+(defrule pack-format-char () (or (pack-unsigned-char)
+                                 (pack-signed-char)
+                                 (pack-unsigned-short)
+                                 (pack-signed-short)
+                                 (pack-unsigned-long)
+                                 (pack-signed-long)
+                                 (pack-unsigned-long-long)
+                                 (pack-signed-long-long)))
+
 ;; Parseq rule for processing the byte order in the format string
 (defrule alignment () (or #\< #\>)
   (:external align)
   (:lambda (x)
     (if (char= x #\<) (setf align :little-endian) (setf align :big-endian)) x))
 
-;; Macro that helps defining rules for the different integer types
+;; Macro that helps defining unpack rules for the different integer types
 (defmacro define-integer-unpack-rule (character length signedness variable)
   `(defrule ,variable (array-var) ,character
      (:external align index)
@@ -121,7 +147,18 @@
          (:signed `(unpack-signed array-var (post-incf index ,length) ,length align))
          (t (error "Invalid signedness specified!"))))))
 
-;; Use the helper macro to define the integer type rules
+;; Macro that helps defining pack rules for the different integer types
+(defmacro define-integer-pack-rule (character length signedness variable)
+  `(defrule ,variable () ,character
+     (:external align index)
+     (:lambda (x)
+       (declare (ignore x))
+       ,(case signedness
+         (:unsigned `(pack-unsigned (post-incf index ,length) ,length align))
+         (:signed `(pack-signed (post-incf index ,length) ,length align))
+         (t (error "Invalid signedness specified!"))))))
+
+;; Use the helper macro to define the integer type unpack rules
 (define-integer-unpack-rule #\Q 8 :unsigned unpack-unsigned-long-long)
 (define-integer-unpack-rule #\q 8 :signed unpack-signed-long-long)
 (define-integer-unpack-rule #\L 4 :unsigned unpack-unsigned-long)
@@ -130,6 +167,16 @@
 (define-integer-unpack-rule #\h 2 :signed unpack-signed-short)
 (define-integer-unpack-rule #\B 1 :unsigned unpack-unsigned-char)
 (define-integer-unpack-rule #\b 1 :signed unpack-signed-char)
+
+;; Use the helper macro to define the integer type pack rules
+(define-integer-pack-rule #\Q 8 :unsigned pack-unsigned-long-long)
+(define-integer-pack-rule #\q 8 :signed pack-signed-long-long)
+(define-integer-pack-rule #\L 4 :unsigned pack-unsigned-long)
+(define-integer-pack-rule #\l 4 :signed pack-signed-long)
+(define-integer-pack-rule #\H 2 :unsigned pack-unsigned-short)
+(define-integer-pack-rule #\h 2 :signed pack-signed-short)
+(define-integer-pack-rule #\B 1 :unsigned pack-unsigned-char)
+(define-integer-pack-rule #\b 1 :signed pack-signed-char)
 
 ;; --- Main macro definitions ------------------------------------------------------
 
@@ -142,11 +189,22 @@
   (let ((array-var (gensym)))
     `(let ((,array-var ,data))
        ;; Generate the code for unpacking using the parseq rule
-       ,(parseq `(unpack-format ,array-var) format))))
+       (list ,@(parseq `(unpack-format ,array-var) format)))))
+
+;; Define the pack macro
+(defmacro pack (format value-list)
+  (let ((code (parseq `pack-format format)))
+    `(destructuring-bind ,(mapcar #'first code) ,value-list
+       ;; Convert values and check bounds
+       ,@(loop for c in code for i upfrom 0 collect `(setf ,(first c) ,(second c)))
+       (vector ,@(loop for c in code append (third c))))))
 
 ;; --- Test area -------------------------------------------------------------------
 
-;; Test the code
+;; Test the unpacking code
 (let ((test-data #(#xF1 #xF2 #xF3 #xF4 #xF5 #xF6 #xF7 #xF8 #xF9 #xFA #xFB #xFC #xFD #xFE #xFF)))
   ;; Unpack the data
   (unpack "<hBBHbq" test-data))
+
+;; Test the packing code
+(pack ">bHL" (list -45 10000 34))
