@@ -51,19 +51,27 @@
       (- (ash 1 (* 8 length)) (abs sint))
       sint))
 
+(define-condition integer-limit-error (error) ())
+
 ;; Checks whether the given integer fits into the specified number of bytes.
-(defun unsigned-boundcheck (integer bytes)
-  (unless (and (>= integer 0) (< integer (ash 1 (* 8 bytes))))
-    (error "struct:pack - unsigned integer bounds exceeded."))
-  integer)
+(defun integer-limits-unsigned (integer bytes)
+  (let ((maxval (1- (ash 1 (* 8 bytes)))))
+    (if (and (>= integer 0) (<= integer maxval))
+        integer
+        (restart-case (error 'integer-limit-error)
+          (use-value (value) value)
+          (wrap-value () (mod integer (1+ maxval)))
+          (clip-value () (if (minusp integer) 0 maxval))))))
 
 ;; Checks whether the given integer fits into the specified number of bytes when
 ;; using two's complement.
-(defun signed-boundcheck (integer bytes)
+(defun integer-limit-signed (integer bytes)
   (let ((maxval (ash 1 (1- (* 8 bytes)))))
-    (unless (and (>= integer (- maxval)) (< integer maxval))
-      (error "struct:pack - signed integer bounds exceeded."))
-    (signed-to-unsigned integer bytes)))
+    (if (and (>= integer (- maxval)) (< integer maxval))
+        (signed-to-unsigned integer bytes)
+        (restart-case (error 'integer-limit-error)
+          (use-value (value) (signed-to-unsigned value bytes))
+          (clip-value () (signed-to-unsigned (if (minusp integer) (- maxval) (1- maxval)) bytes))))))
 
 ;; Produces code to unpack an unsigned integer of given length and byte order from an array of bytes at the given position.
 ;; This function will be used in a macro expansion.
@@ -86,7 +94,7 @@
           for index = (case byte-order (:little-endian (* i 8)) (:big-endian (* (- length i 1) 8)) (t (error "Invalid byte order specified")))
           collect `(ldb (byte 8 ,index) ,value)
             into results
-          finally (return `(,value (unsigned-boundcheck ,value ,length) ,results)))))
+          finally (return `(,value (integer-limits-unsigned ,value ,length) ,results)))))
 
 ;; Produces code to pack a signed integer of given length into an array of bytes in given byte order and at the given position.
 ;; This function will be used in a macro expansion.
@@ -96,7 +104,7 @@
           for index = (case byte-order (:little-endian (* i 8)) (:big-endian (* (- length i 1) 8)) (t (error "Invalid byte order specified")))
           collect `(ldb (byte 8 ,index) ,value)
             into results
-          finally (return `(,value (signed-boundcheck ,value ,length) ,results)))))
+          finally (return `(,value (integer-limit-signed ,value ,length) ,results)))))
 
 ;; --- Parseq rules ----------------------------------------------------------------
 
@@ -195,7 +203,7 @@
 (defmacro pack (format value-list)
   (let ((code (parseq `pack-format format)))
     `(destructuring-bind ,(mapcar #'first code) ,value-list
-       ;; Convert values and check bounds
+       ;; Convert values and check limits
        ,@(loop for c in code for i upfrom 0 collect `(setf ,(first c) ,(second c)))
        (vector ,@(loop for c in code append (third c))))))
 
