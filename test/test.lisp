@@ -204,5 +204,11 @@
       (is (array= #(254 0 1 255 255 255 254 1 255 254 0 0 0 1) (pack ">bHlBhL" '(-2 1 -2 1 -2 1))))
       (is (array= #(254 1 0 254 255 255 255 1 254 255 1 0 0 0) (pack "<bHlBhL" '(-2 1 -2 1 -2 1)))))
 
+(test (usage-tests :depends-on (and unpack-tests pack-tests))
+      (signals struct::argument-error (unpack ">bHlBhL" #(0 0 0 0 0 0 0 0 0 0 0 0 0)))
+      (signals struct::argument-error (unpack ">bHlBhL" #(0 0 0 0 0 0 0 0 0 0 0 0 0 0 0)))
+      (signals struct::argument-error (pack ">bHlBhL" '(0 0 0 0 0)))
+      (signals struct::argument-error (pack ">bHlBhL" '(0 0 0 0 0 0 0))))
+
 (defun lisp-struct-test ()
   (run!))

@@ -25,6 +25,10 @@
 
 (in-package :lisp-struct)
 
+(defmacro f-error (type (&rest initargs) control &rest args)
+  "Like (error ...), but allows the condition type to be specified (which is required to inherit from simple-condition)."
+  `(error ',type ,@initargs :format-control ,control :format-arguments (list ,@args)))
+
 ;; Helper macro: like (incf ...) but returning the old instead of the new value
 (defmacro post-incf (place &optional (delta 1))
   (let ((var (gensym)))
@@ -110,7 +114,7 @@
 ;; Parseq rule for generating the code that processes the data for unpacking
 (defrule unpack-format (array-var) (and (? alignment) (* (unpack-format-char array-var)))
   (:let (align :little-endian) (index 0))
-  (:choose 1))
+  (:lambda (a x) (declare (ignore a)) `(,index ,x)))
 
 ;; Parseq rule for generating the code that processes the data for packing
 (defrule pack-format () (and (? alignment) (* (pack-format-char)))
@@ -187,21 +191,32 @@
 
 ;; --- Main macro definitions ------------------------------------------------------
 
+(define-condition argument-error (simple-condition) ())
+
 ;; Define the unpack macro
 (defmacro unpack (format data)
   ;; Check the format string
   (unless (stringp format)
-    (error "The argument 'format' must be a literal string!"))
+    (f-error argument-error () "The argument 'format' must be a literal string!"))
   ;; Evaluate the data once
   (let ((array-var (gensym)))
-    `(let ((,array-var ,data))
-       ;; Generate the code for unpacking using the parseq rule
-       (list ,@(parseq `(unpack-format ,array-var) format)))))
+    (destructuring-bind (bytes code) (parseq `(unpack-format ,array-var) format)
+      `(let ((,array-var ,data))
+         (unless (= (length ,array-var) ,bytes)
+           (f-error argument-error () "Invalid number of bytes. Expected: ~a" ,bytes))
+         ;; Generate the code for unpacking using the parseq rule
+         (list ,@code)))))
 
 ;; Define the pack macro
 (defmacro pack (format value-list)
-  (let ((code (parseq `pack-format format)))
-    `(destructuring-bind ,(mapcar #'first code) ,value-list
-       ;; Convert values and check limits
-       ,@(loop for c in code for i upfrom 0 collect `(setf ,(first c) ,(second c)))
-       (vector ,@(loop for c in code append (third c))))))
+  ;; Check the format string
+  (unless (stringp format)
+    (f-error argument-error () "The argument 'format' must be a literal string!"))
+  (let ((code (parseq `pack-format format)) (values (gensym)))
+    `(let ((,values ,value-list))
+       (when (/= (length ,values) ,(length code))
+         (f-error argument-error () "Invalid number of values. Expected: ~a" ,(length code)))
+       (destructuring-bind ,(mapcar #'first code) ,values
+         ;; Convert values and check limits
+         ,@(loop for c in code for i upfrom 0 collect `(setf ,(first c) ,(second c)))
+         (vector ,@(loop for c in code append (third c)))))))
