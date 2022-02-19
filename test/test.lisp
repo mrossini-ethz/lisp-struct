@@ -98,7 +98,7 @@
       (is (= 4294967295 (handler-bind ((integer-limit-error #'(lambda (c) (declare (ignore c)) (invoke-restart 'wrap-value)))) (lisp-struct::integer-limit-unsigned -1 4))))
       (is (= 0 (handler-bind ((integer-limit-error #'(lambda (c) (declare (ignore c)) (invoke-restart 'wrap-value)))) (lisp-struct::integer-limit-unsigned 4294967296 4)))))
 
-(test unpack-tests
+(test (unpack-tests :depends-on conversion-tests)
       ;; 8 bits unsigned
       (is (equal '(0 1 2 254 255) (unpack ">BBBBB" #(0 1 2 254 255))))
       (is (equal '(0 1 2 254 255) (unpack "<BBBBB" #(0 1 2 254 255))))
@@ -151,7 +151,7 @@
       (is (equal '(-2 1 -2 1 -2 1) (unpack ">bHlBhL" #(254 0 1 255 255 255 254 1 255 254 0 0 0 1))))
       (is (equal '(-2 1 -2 1 -2 1) (unpack "<bHlBhL" #(254 1 0 254 255 255 255 1 254 255 1 0 0 0)))))
 
-(test pack-tests
+(test (pack-tests :depends-on conversion-tests)
       ;; 8 bits unsigned
       (is (array= #(0 1 2 254 255) (pack ">BBBBB" '(0 1 2 254 255))))
       (is (array= #(0 1 2 254 255) (pack "<BBBBB" '(0 1 2 254 255))))
