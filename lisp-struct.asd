@@ -15,7 +15,8 @@
   :license "GPLv2"
   :depends-on (:lisp-struct :fiveam)
   :serial t
-  :components ((:file "test/test")))
+  :components ((:file "test/package")
+               (:file "test/test")))
 
 (defmethod perform ((operation test-op) (system (eql (find-system :lisp-struct/test))))
-  (funcall (intern "LISP-STRUCT-TEST" :lisp-struct)))
+  (funcall (intern "LISP-STRUCT-TEST" :lisp-struct/test)))

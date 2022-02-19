@@ -1,4 +1,4 @@
-(in-package :lisp-struct)
+(in-package :lisp-struct/test)
 
 (defun lisp-struct-test ()
   ;; Test the unpacking code
@@ -9,5 +9,6 @@
   ;; Test the packing code
   (print (pack ">bHL" (list -45 10000 34)))
 
+  (run!)
   (fresh-line))
 
