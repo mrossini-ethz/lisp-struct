@@ -51,24 +51,24 @@
 (define-condition integer-limit-error (error) ())
 
 ;; Checks whether the given integer fits into the specified number of bytes.
-(defun integer-limits-unsigned (integer bytes)
+(defun integer-limit-unsigned (integer bytes)
   (let ((maxval (1- (ash 1 (* 8 bytes)))))
     (if (and (>= integer 0) (<= integer maxval))
         integer
         (restart-case (error 'integer-limit-error)
           (use-value (value) value)
-          (wrap-value () (mod integer (1+ maxval)))
-          (clip-value () (if (minusp integer) 0 maxval))))))
+          (clip-value () (if (minusp integer) 0 maxval))
+          (wrap-value () (mod integer (1+ maxval)))))))
 
 ;; Checks whether the given integer fits into the specified number of bytes when
 ;; using two's complement.
 (defun integer-limit-signed (integer bytes)
   (let ((maxval (ash 1 (1- (* 8 bytes)))))
     (if (and (>= integer (- maxval)) (< integer maxval))
-        (signed-to-unsigned integer bytes)
+        integer
         (restart-case (error 'integer-limit-error)
           (use-value (value) (signed-to-unsigned value bytes))
-          (clip-value () (signed-to-unsigned (if (minusp integer) (- maxval) (1- maxval)) bytes))))))
+          (clip-value () (if (minusp integer) (- maxval) (1- maxval)))))))
 
 ;; Produces code to unpack an unsigned integer of given length and byte order from an array of bytes at the given position.
 ;; This function will be used in a macro expansion.
@@ -92,7 +92,7 @@
           for index = (case byte-order (:little-endian (* i 8)) (:big-endian (* (- length i 1) 8)) (t (error "Invalid byte order specified")))
           collect `(ldb (byte 8 ,index) ,value)
             into results
-          finally (return `(,value (integer-limits-unsigned ,value ,length) ,results)))))
+          finally (return `(,value (integer-limit-unsigned ,value ,length) ,results)))))
 
 ;; Produces code to pack a signed integer of given length into an array of bytes in given byte order and at the given position.
 ;; This function will be used in a macro expansion.
@@ -103,7 +103,7 @@
           for index = (case byte-order (:little-endian (* i 8)) (:big-endian (* (- length i 1) 8)) (t (error "Invalid byte order specified")))
           collect `(ldb (byte 8 ,index) ,value)
             into results
-          finally (return `(,value (integer-limit-signed ,value ,length) ,results)))))
+          finally (return `(,value (signed-to-unsigned (integer-limit-signed ,value ,length) ,length) ,results)))))
 
 ;; --- Parseq rules ----------------------------------------------------------------
 
