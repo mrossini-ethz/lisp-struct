@@ -21,12 +21,9 @@
 ;; However, we might want struct-unpack to be a macro such that the string "<LhbBH" will be
 ;; interpreted at compile time and the code will run faster.
 
-;; Load the parseq package
-(require :asdf)
-(asdf:load-system :parseq)
-(use-package :parseq)
-
 ;; --- Helper functions/macros -----------------------------------------------------
+
+(in-package :lisp-struct)
 
 ;; Helper macro: like (incf ...) but returning the old instead of the new value
 (defmacro post-incf (place &optional (delta 1))
@@ -89,6 +86,7 @@
 ;; Produces code to pack an unsigned integer of given length into an array of bytes in given byte order and at the given position.
 ;; This function will be used in a macro expansion.
 (defun pack-unsigned (pos length byte-order)
+  (declare (ignore pos))
   (let ((value (gensym)))
     (loop for i below length
           for index = (case byte-order (:little-endian (* i 8)) (:big-endian (* (- length i 1) 8)) (t (error "Invalid byte order specified")))
@@ -99,6 +97,7 @@
 ;; Produces code to pack a signed integer of given length into an array of bytes in given byte order and at the given position.
 ;; This function will be used in a macro expansion.
 (defun pack-signed (pos length byte-order)
+  (declare (ignore pos))
   (let ((value (gensym)))
     (loop for i below length
           for index = (case byte-order (:little-endian (* i 8)) (:big-endian (* (- length i 1) 8)) (t (error "Invalid byte order specified")))
@@ -206,13 +205,3 @@
        ;; Convert values and check limits
        ,@(loop for c in code for i upfrom 0 collect `(setf ,(first c) ,(second c)))
        (vector ,@(loop for c in code append (third c))))))
-
-;; --- Test area -------------------------------------------------------------------
-
-;; Test the unpacking code
-(let ((test-data #(#xF1 #xF2 #xF3 #xF4 #xF5 #xF6 #xF7 #xF8 #xF9 #xFA #xFB #xFC #xFD #xFE #xFF)))
-  ;; Unpack the data
-  (unpack "<hBBHbq" test-data))
-
-;; Test the packing code
-(pack ">bHL" (list -45 10000 34))
