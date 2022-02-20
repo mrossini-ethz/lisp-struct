@@ -114,18 +114,27 @@
 ;; Parseq rule for generating the code that processes the data for unpacking
 (defrule unpack-format (array-var) (and (? alignment) (* (unpack-format-char array-var)))
   (:let (align :little-endian) (index 0))
-  (:lambda (a x) (declare (ignore a)) `(,index ,x)))
+  (:lambda (a code) (declare (ignore a)) `(,index ,(apply #'concatenate 'list code))))
 
 ;; Parseq rule for generating the code that processes the data for packing
 (defrule pack-format () (and (? alignment) (* (pack-format-char)))
   (:let (align :little-endian) (index 0))
-  (:lambda (a x) (declare (ignore a)) `(,index ,x)))
+  (:lambda (a code) (declare (ignore a)) `(,index ,(apply #'concatenate 'list code))))
 
 ;; Parseq rule for processing the byte order in the format string
 (defrule alignment () (or #\< #\>)
   (:external align)
   (:lambda (x)
     (if (char= x #\<) (setf align :little-endian) (setf align :big-endian)) x))
+
+;; Parseq rule for numbers (used for character repetition)
+(defrule rep-number () (and (char "1-9") (* (char "0-9")))
+  (:string)
+  (:function #'parse-integer))
+
+;; Parseq rule for character repetition (defaults to 1 repetition)
+(defrule reps () (? rep-number)
+  (:lambda (&rest n) (if n (first n) 1)))
 
 ;; Parseq rule for unpacking the individual data type elements of the format string
 (defrule unpack-format-char (array-var) (or (unpack-unsigned-char array-var)
@@ -149,24 +158,24 @@
 
 ;; Macro that helps defining unpack rules for the different integer types
 (defmacro define-integer-unpack-rule (character length signedness variable)
-  `(defrule ,variable (array-var) ,character
+  `(defrule ,variable (array-var) (and reps ,character)
      (:external align index)
-     (:lambda (x)
-       (declare (ignore x))
+     (:lambda (n c)
+       (declare (ignore c))
        ,(case signedness
-         (:unsigned `(unpack-unsigned array-var (post-incf index ,length) ,length align))
-         (:signed `(unpack-signed array-var (post-incf index ,length) ,length align))
+         (:unsigned `(loop for i below n collect (unpack-unsigned array-var (post-incf index ,length) ,length align)))
+         (:signed `(loop for i below n collect (unpack-signed array-var (post-incf index ,length) ,length align)))
          (t (error "Invalid signedness specified!"))))))
 
 ;; Macro that helps defining pack rules for the different integer types
 (defmacro define-integer-pack-rule (character length signedness variable)
-  `(defrule ,variable () ,character
+  `(defrule ,variable () (and reps ,character)
      (:external align index)
-     (:lambda (x)
-       (declare (ignore x))
+     (:lambda (n c)
+       (declare (ignore c))
        ,(case signedness
-         (:unsigned `(pack-unsigned (post-incf index ,length) ,length align))
-         (:signed `(pack-signed (post-incf index ,length) ,length align))
+         (:unsigned `(loop for i below n collect (pack-unsigned (post-incf index ,length) ,length align)))
+         (:signed `(loop for i below n collect (pack-signed (post-incf index ,length) ,length align)))
          (t (error "Invalid signedness specified!"))))))
 
 ;; Use the helper macro to define the integer type unpack rules
