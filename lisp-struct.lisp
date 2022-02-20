@@ -112,12 +112,12 @@
 ;; --- Parseq rules ----------------------------------------------------------------
 
 ;; Parseq rule for generating the code that processes the data for unpacking
-(defrule unpack-format (array-var) (and (? alignment) (* (unpack-format-char array-var)))
+(defrule unpack-format (array-var) (and alignment (* (unpack-format-char array-var)))
   (:let (align :little-endian) (index 0))
   (:lambda (a code) (declare (ignore a)) `(,index ,(apply #'concatenate 'list code))))
 
 ;; Parseq rule for generating the code that processes the data for packing
-(defrule pack-format () (and (? alignment) (* (pack-format-char)))
+(defrule pack-format () (and alignment (* (pack-format-char)))
   (:let (align :little-endian) (index 0))
   (:lambda (a code) (declare (ignore a)) `(,index ,(apply #'concatenate 'list code))))
 
@@ -208,8 +208,10 @@
   (unless (stringp format)
     (f-error argument-error () "The argument 'format' must be a literal string!"))
   ;; Evaluate the data once
-  (let ((array-var (gensym)))
-    (destructuring-bind (bytes code) (parseq `(unpack-format ,array-var) format)
+  (let* ((array-var (gensym)) (result (parseq `(unpack-format ,array-var) format)))
+    (unless result
+      (f-error argument-error () "Invalid format string!"))
+    (destructuring-bind (bytes code) result
       `(let ((,array-var ,data))
          (unless (= (length ,array-var) ,bytes)
            (f-error argument-error () "Invalid number of bytes. Expected: ~a" ,bytes))
@@ -221,8 +223,10 @@
   ;; Check the format string
   (unless (stringp format)
     (f-error argument-error () "The argument 'format' must be a literal string!"))
-  (let ((values (gensym)))
-    (destructuring-bind (bytes code) (parseq `pack-format format)
+  (let ((values (gensym)) (result (parseq `pack-format format)))
+    (unless result
+      (f-error argument-error () "Invalid format string!"))
+    (destructuring-bind (bytes code) result
       `(let ((,values ,value-list))
          (when (/= (length ,values) ,(length code))
            (f-error argument-error () "Invalid number of values. Expected: ~a" ,(length code)))

@@ -307,6 +307,13 @@
       (finishes (pack ">B12H2L" '(0 0 0 0 0 0 0 0 0 0 0 0 0 0 0)))
       (signals struct::argument-error (pack ">B12H2L" '(0 0 0 0 0 0 0 0 0 0 0 0 0 0)))
       (signals struct::argument-error (pack ">B12H2L" '(0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0)))
+      ;; Format string
+      (signals struct::argument-error (eval '(unpack "" '())))
+      (signals struct::argument-error (eval '(pack "" '())))
+      (signals struct::argument-error (eval '(unpack "b" '(0))))
+      (signals struct::argument-error (eval '(pack "b" '(0))))
+      (signals struct::argument-error (eval '(unpack ">0b" '())))
+      (signals struct::argument-error (eval '(pack ">0b" '())))
       ;; Return type
       (is-true (typep (unpack ">bHlBhL" '(0 0 0 0 0 0 0 0 0 0 0 0 0 0)) 'list))
       (is-true (typep (pack ">bHlBhL" '(0 0 0 0 0 0)) '(simple-array (unsigned-byte 8) (14)))))
