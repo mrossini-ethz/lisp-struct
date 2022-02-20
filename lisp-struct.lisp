@@ -119,7 +119,7 @@
 ;; Parseq rule for generating the code that processes the data for packing
 (defrule pack-format () (and (? alignment) (* (pack-format-char)))
   (:let (align :little-endian) (index 0))
-  (:choose 1))
+  (:lambda (a x) (declare (ignore a)) `(,index ,x)))
 
 ;; Parseq rule for processing the byte order in the format string
 (defrule alignment () (or #\< #\>)
@@ -212,11 +212,12 @@
   ;; Check the format string
   (unless (stringp format)
     (f-error argument-error () "The argument 'format' must be a literal string!"))
-  (let ((code (parseq `pack-format format)) (values (gensym)))
-    `(let ((,values ,value-list))
-       (when (/= (length ,values) ,(length code))
-         (f-error argument-error () "Invalid number of values. Expected: ~a" ,(length code)))
-       (destructuring-bind ,(mapcar #'first code) ,values
-         ;; Convert values and check limits
-         ,@(loop for c in code for i upfrom 0 collect `(setf ,(first c) ,(second c)))
-         (vector ,@(loop for c in code append (third c)))))))
+  (let ((values (gensym)))
+    (destructuring-bind (bytes code) (parseq `pack-format format)
+      `(let ((,values ,value-list))
+         (when (/= (length ,values) ,(length code))
+           (f-error argument-error () "Invalid number of values. Expected: ~a" ,(length code)))
+         (destructuring-bind ,(mapcar #'first code) ,values
+           ;; Convert values and check limits
+           ,@(loop for c in code for i upfrom 0 collect `(setf ,(first c) ,(second c)))
+           (make-array ,bytes :element-type '(unsigned-byte 8) :initial-contents (list ,@(loop for c in code append (third c)))))))))

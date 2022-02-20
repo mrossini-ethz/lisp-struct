@@ -205,10 +205,14 @@
       (is (array= #(254 1 0 254 255 255 255 1 254 255 1 0 0 0) (pack "<bHlBhL" '(-2 1 -2 1 -2 1)))))
 
 (test (usage-tests :depends-on (and unpack-tests pack-tests))
+      ;; Number of arguments
       (signals struct::argument-error (unpack ">bHlBhL" #(0 0 0 0 0 0 0 0 0 0 0 0 0)))
       (signals struct::argument-error (unpack ">bHlBhL" #(0 0 0 0 0 0 0 0 0 0 0 0 0 0 0)))
       (signals struct::argument-error (pack ">bHlBhL" '(0 0 0 0 0)))
-      (signals struct::argument-error (pack ">bHlBhL" '(0 0 0 0 0 0 0))))
+      (signals struct::argument-error (pack ">bHlBhL" '(0 0 0 0 0 0 0)))
+      ;; Return type
+      (is-true (typep (unpack ">bHlBhL" '(0 0 0 0 0 0 0 0 0 0 0 0 0 0)) 'list))
+      (is-true (typep (pack ">bHlBhL" '(0 0 0 0 0 0)) '(simple-array (unsigned-byte 8) (14)))))
 
 (defun lisp-struct-test ()
   (run!))
