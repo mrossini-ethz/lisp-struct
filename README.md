@@ -62,3 +62,20 @@ More types may be supported in the future.
 
 ### Repetitions
 Format string characters may include a number for repetition. Example: `4B` is equivalent to `BBBB`.
+
+# Licence
+lisp-struct is distributed with the GNU General Public License, version 2:
+
+Copyright (C) 2017 Marco Rossini
+
+This program is free software; you can redistribute it and/or modify it under the terms of the GNU General Public License version 2 as published by the Free Software Foundation.
+
+This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License along with this program; if not, write to the Free Software Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
+
+You can also find the full licence [online](https://www.gnu.org/licenses/old-licenses/gpl-2.0.en.html).
+
+# Questions/Bugs/Help/Requests/Feedback etc.
+
+If you have questions regarding lisp-struct, found any bugs, would like to offer help, have a feature request, give feedback etc., feel free to contact me through GitHub.
