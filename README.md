@@ -1,11 +1,13 @@
-# Description
+# lisp-struct
+
+## Description
 The lisp-struct package is similar to the [struct module](https://docs.python.org/3/library/struct.html) in python.
 It allows the packing and unpacking of binary data (e.g. saved structures or data traffic) with a very simple interface.
 An *embedded language* is used to represent the data structure in the form of *format strings*.
 In python, the format strings are *interpreted* at runtime.
 Contrary to this, lisp-struct will *compile* the format strings using *macro expansion*.
 
-# Examples
+## Examples
 The following code unpacks three integer values from a data array:
 
     (let ((binary-data #(253 210 4 21 205 91 7)))
@@ -23,7 +25,7 @@ The reverse can also be done:
 
 This will result in the array `#(253 210 4 21 205 91 7)`.
 
-# Usage
+## Usage
 After installation of the package and configuration of ASDF, the package can be loaded like this:
 
     (require :asdf)
@@ -31,10 +33,10 @@ After installation of the package and configuration of ASDF, the package can be 
 
 The two examples above already show most of the functionality of the package.
 
-## Format Strings
+### Format Strings
 Many of the features in the python module are implemented in the lisp package.
 
-### Data Format
+#### Data Format
 There are two options for the data format:
 
 | Char | Byte Order    | Aligmnent |
@@ -44,7 +46,7 @@ There are two options for the data format:
 
 Contrary to the python module, a format *has* to be selected.
 
-### Data types
+#### Data types
 The following data types are supported at this time:
 
 | Char | Type    | Signedness | Size   |
@@ -60,13 +62,13 @@ The following data types are supported at this time:
 
 More types may be supported in the future.
 
-### Repetitions
+#### Repetitions
 Format string characters may include a number for repetition. Example: `4B` is equivalent to `BBBB`.
 
-# Licence
+## Licence
 lisp-struct is distributed with the GNU General Public License, version 2:
 
-Copyright (C) 2017 Marco Rossini
+Copyright (C) 2022 Marco Rossini
 
 This program is free software; you can redistribute it and/or modify it under the terms of the GNU General Public License version 2 as published by the Free Software Foundation.
 
@@ -76,6 +78,6 @@ You should have received a copy of the GNU General Public License along with thi
 
 You can also find the full licence [online](https://www.gnu.org/licenses/old-licenses/gpl-2.0.en.html).
 
-# Questions/Bugs/Help/Requests/Feedback etc.
+## Questions/Bugs/Help/Requests/Feedback etc.
 
 If you have questions regarding lisp-struct, found any bugs, would like to offer help, have a feature request, give feedback etc., feel free to contact me through GitHub.
