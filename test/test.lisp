@@ -3,6 +3,14 @@
 (defun array= (a b)
   (and (= (length a) (length b)) (every #'identity (map 'list #'= a b))))
 
+(test character-tests
+      (is (equal '(#\A) (lisp-struct:unpack ">c" #(65))))
+      (is (equal '(#\A) (lisp-struct:unpack "<c" #(65))))
+      (is (equal '(#\A #\B #\C) (lisp-struct:unpack ">ccc" #(65 66 67))))
+      (is (equal '(#\A #\B #\C) (lisp-struct:unpack "<ccc" #(65 66 67))))
+      (is (equal '(#\A #\B #\C) (lisp-struct:unpack ">3c" #(65 66 67))))
+      (is (equal '(#\A #\B #\C) (lisp-struct:unpack "<3c" #(65 66 67)))))
+
 (test conversion-tests
       ;; unsigned to signed, 8 bits
       (is (= 0 (lisp-struct::unsigned-to-signed 0 1)))
@@ -98,7 +106,7 @@
       (is (= 4294967295 (handler-bind ((integer-limit-error #'(lambda (c) (declare (ignore c)) (invoke-restart 'wrap-value)))) (lisp-struct::integer-limit-unsigned -1 4))))
       (is (= 0 (handler-bind ((integer-limit-error #'(lambda (c) (declare (ignore c)) (invoke-restart 'wrap-value)))) (lisp-struct::integer-limit-unsigned 4294967296 4)))))
 
-(test (unpack-tests :depends-on conversion-tests)
+(test (integer-unpack-tests :depends-on conversion-tests)
       ;; 8 bits unsigned
       (is (equal '(0 1 2 254 255) (unpack ">BBBBB" #(0 1 2 254 255))))
       (is (equal '(0 1 2 254 255) (unpack "<BBBBB" #(0 1 2 254 255))))
@@ -195,7 +203,7 @@
       (is (equal '(-2 -2 1 1 -2 -2 1 1 -2 -2 1 1) (unpack ">2b2H2l2B2h2L" #(254 254 0 1 0 1 255 255 255 254 255 255 255 254 1 1 255 254 255 254 0 0 0 1 0 0 0 1))))
       (is (equal '(-2 -2 1 1 -2 -2 1 1 -2 -2 1 1) (unpack "<2b2H2l2B2h2L" #(254 254 1 0 1 0 254 255 255 255 254 255 255 255 1 1 254 255 254 255 1 0 0 0 1 0 0 0)))))
 
-(test (pack-tests :depends-on conversion-tests)
+(test (integer-pack-tests :depends-on conversion-tests)
       ;; 8 bits unsigned
       (is (array= #(0 1 2 254 255) (pack ">BBBBB" '(0 1 2 254 255))))
       (is (array= #(0 1 2 254 255) (pack "<BBBBB" '(0 1 2 254 255))))
@@ -292,7 +300,7 @@
       (is (array= #(254 254 0 1 0 1 255 255 255 254 255 255 255 254 1 1 255 254 255 254 0 0 0 1 0 0 0 1) (pack ">2b2H2l2B2h2L" '(-2 -2 1 1 -2 -2 1 1 -2 -2 1 1))))
       (is (array= #(254 254 1 0 1 0 254 255 255 255 254 255 255 255 1 1 254 255 254 255 1 0 0 0 1 0 0 0) (pack "<2b2H2l2B2h2L" '(-2 -2 1 1 -2 -2 1 1 -2 -2 1 1)))))
 
-(test (usage-tests :depends-on (and unpack-tests pack-tests))
+(test (usage-tests :depends-on (and character-tests integer-unpack-tests integer-pack-tests))
       ;; Number of arguments (unpack)
       (finishes (unpack ">bHlBhL" #(0 0 0 0 0 0 0 0 0 0 0 0 0 0)))
       (signals argument-error (unpack ">bHlBhL" #(0 0 0 0 0 0 0 0 0 0 0 0 0)))

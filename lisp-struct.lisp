@@ -137,7 +137,8 @@
   (:lambda (&rest n) (if n (first n) 1)))
 
 ;; Parseq rule for unpacking the individual data type elements of the format string
-(defrule unpack-format-char (array-var) (or (unpack-unsigned-char array-var)
+(defrule unpack-format-char (array-var) (or (unpack-char array-var)
+                                            (unpack-unsigned-char array-var)
                                             (unpack-signed-char array-var)
                                             (unpack-unsigned-short array-var)
                                             (unpack-signed-short array-var)
@@ -155,6 +156,13 @@
                                  (pack-signed-long)
                                  (pack-unsigned-long-long)
                                  (pack-signed-long-long)))
+
+;; Parseq rule for unpacking characters
+(defrule unpack-char (array-var) (and reps "c")
+  (:external index)
+  (:lambda (n c)
+    (declare (ignore c))
+    (loop for i below n collect `(code-char (elt ,array-var ,(post-incf index))))))
 
 ;; Macro that helps defining unpack rules for the different integer types
 (defmacro define-integer-unpack-rule (character length signedness variable)
