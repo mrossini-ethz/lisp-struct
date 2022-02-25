@@ -21,9 +21,11 @@
 ;; However, we might want struct-unpack to be a macro such that the string "<LhbBH" will be
 ;; interpreted at compile time and the code will run faster.
 
-;; --- Helper functions/macros -----------------------------------------------------
-
 (in-package :lisp-struct)
+
+(define-condition limit-error (error) ())
+
+;; --- Helper functions/macros -----------------------------------------------------
 
 (defmacro f-error (type (&rest initargs) control &rest args)
   "Like (error ...), but allows the condition type to be specified (which is required to inherit from simple-condition)."
@@ -35,6 +37,12 @@
     `(let ((,var ,place))
        (incf ,place ,delta)
        ,var)))
+
+;; Function that checks the ASCII value of characters
+(defun character-limit (char)
+  (when (> (char-code char) 255)
+    (error 'limit-error))
+  char)
 
 ;; Function that converts an unsigned integer uint into a signed integer by interpreting
 ;; the unsigned value as the two's complement of the signed value.
@@ -52,14 +60,12 @@
       (- (ash 1 (* 8 length)) (abs sint))
       sint))
 
-(define-condition integer-limit-error (error) ())
-
 ;; Checks whether the given integer fits into the specified number of bytes.
 (defun integer-limit-unsigned (integer bytes)
   (let ((maxval (1- (ash 1 (* 8 bytes)))))
     (if (and (>= integer 0) (<= integer maxval))
         integer
-        (restart-case (error 'integer-limit-error)
+        (restart-case (error 'limit-error)
           (use-value (value) value)
           (clip-value () (if (minusp integer) 0 maxval))
           (wrap-value () (mod integer (1+ maxval)))))))
@@ -70,7 +76,7 @@
   (let ((maxval (ash 1 (1- (* 8 bytes)))))
     (if (and (>= integer (- maxval)) (< integer maxval))
         integer
-        (restart-case (error 'integer-limit-error)
+        (restart-case (error 'limit-error)
           (use-value (value) (signed-to-unsigned value bytes))
           (clip-value () (if (minusp integer) (- maxval) (1- maxval)))))))
 
@@ -148,7 +154,8 @@
                                             (unpack-signed-long-long array-var)))
 
 ;; Parseq rule for packing the individual data type elements of the format string
-(defrule pack-format-char () (or (pack-unsigned-char)
+(defrule pack-format-char () (or (pack-char)
+                                 (pack-unsigned-char)
                                  (pack-signed-char)
                                  (pack-unsigned-short)
                                  (pack-signed-short)
@@ -163,6 +170,12 @@
   (:lambda (n c)
     (declare (ignore c))
     (loop for i below n collect `(code-char (elt ,array-var ,(post-incf index))))))
+
+(defrule pack-char () (and reps "c")
+  (:external index)
+  (:lambda (n c)
+    (declare (ignore c))
+    (loop for i below n for var = (gensym) do (incf index) collect `(,var (character-limit ,var) ((char-code ,var))))))
 
 ;; Macro that helps defining unpack rules for the different integer types
 (defmacro define-integer-unpack-rule (character length signedness variable)
