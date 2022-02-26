@@ -175,7 +175,8 @@
   (:external index)
   (:lambda (n c)
     (declare (ignore c))
-    (loop for i below n for var = (gensym) do (incf index) collect `(,var (character-limit ,var) ((char-code ,var))))))
+    (incf index n)
+    (loop for i below n for var = (gensym) collect `(,var (character-limit ,var) ((char-code ,var))))))
 
 ;; Macro that helps defining unpack rules for the different integer types
 (defmacro define-integer-unpack-rule (character length signedness variable)
