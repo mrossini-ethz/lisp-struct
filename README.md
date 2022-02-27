@@ -8,22 +8,24 @@ In python, the format strings are *interpreted* at runtime.
 Contrary to this, lisp-struct will *compile* the format strings using *macro expansion*.
 
 ## Examples
-The following code unpacks three integer values from a data array:
+The following code unpacks three integer values, one character and a boolean from a data array:
 
-    (let ((binary-data #(253 210 4 21 205 91 7)))
-      (lisp-struct:unpack "<bHL" binary-data))
-    
-This results in the list `(-3 1234 123456789)`. The format string `"<bHL"` means
+    (let ((binary-data #(253 1 210 4 65 21 205 91 7)))
+      (lisp-struct:unpack "<b?HcL" binary-data))
+
+This results in the list `(-3 T 1234 #\A 123456789)`. The format string `"<b?HcL"` means
 * `<`: Use little-endian format
 * `b`: The first item is an signed 8 bit integer
-* `H`: The second item is an unsigned 16 bit integer
-* `L`: The third item is an unsigned 32 bit integer
+* `?`: The second item is a boolean value
+* `H`: The third item is an unsigned 16 bit integer
+* `c`: The fourth item is a character
+* `L`: The fifth item is an unsigned 32 bit integer
 
 The reverse can also be done:
 
-    (lisp-struct:pack "<bHL" '(-3 1234 123456789))
+    (lisp-struct:pack "<b?HcL" '(-3 t 1234 #\A 123456789))
 
-This will result in the array `#(253 210 4 21 205 91 7)`.
+This will result in the array `#(253 1 210 4 65 21 205 91 7)`.
 
 ## Usage
 After installation of the package and configuration of ASDF, the package can be loaded like this:
@@ -49,21 +51,26 @@ Contrary to the python module, a format *has* to be selected.
 #### Data types
 The following data types are supported at this time:
 
-| Char | Type    | Signedness | Size   |
-| :--- | :------ | :--------- | :----- |
-| `b`  | Integer | signed     | 8 bit  |
-| `B`  | Integer | unsigned   | 8 bit  |
-| `h`  | Integer | signed     | 16 bit |
-| `H`  | Integer | unsigned   | 16 bit |
-| `l`  | Integer | signed     | 32 bit |
-| `L`  | Integer | unsigned   | 32 bit |
-| `q`  | Integer | signed     | 64 bit |
-| `Q`  | Integer | unsigned   | 64 bit |
+| Char | Type      | Signedness | Size   |
+| :--- | :-------- | :--------- | :----- |
+| `x`  | Padding   |            | 8 bit  |
+| `c`  | Character |            | 8 bit  |
+| `s`  | String    |            | 8 bit  |
+| `?`  | Boolean   |            | 8 bit  |
+| `b`  | Integer   | signed     | 8 bit  |
+| `B`  | Integer   | unsigned   | 8 bit  |
+| `h`  | Integer   | signed     | 16 bit |
+| `H`  | Integer   | unsigned   | 16 bit |
+| `l`  | Integer   | signed     | 32 bit |
+| `L`  | Integer   | unsigned   | 32 bit |
+| `q`  | Integer   | signed     | 64 bit |
+| `Q`  | Integer   | unsigned   | 64 bit |
 
 More types may be supported in the future.
 
 #### Repetitions
 Format string characters may include a number for repetition. Example: `4B` is equivalent to `BBBB`.
+As in the python module, the number for strings indicate the length of the string instead of repetitions.
 
 ## Licence
 lisp-struct is distributed with the GNU General Public License, version 2:
