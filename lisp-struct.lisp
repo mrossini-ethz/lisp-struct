@@ -118,14 +118,15 @@
 ;; --- Parseq rules ----------------------------------------------------------------
 
 ;; Parseq rule for generating the code that processes the data for unpacking
+;; Returns a list consisting of the number of bytes and a list of lisp expressions
 (defrule unpack-format (array-var) (and alignment (* (unpack-format-char array-var)))
-  (:let (align :little-endian) (index 0))
-  (:lambda (a code) (declare (ignore a)) `(,index ,(apply #'concatenate 'list code))))
+  (:let (align :little-endian) (bytes 0))
+  (:lambda (a code) (declare (ignore a)) `(,bytes ,(apply #'concatenate 'list code))))
 
 ;; Parseq rule for generating the code that processes the data for packing
 (defrule pack-format () (and alignment (* (pack-format-char)))
-  (:let (align :little-endian) (index 0))
-  (:lambda (a code) (declare (ignore a)) `(,index ,(apply #'concatenate 'list code))))
+  (:let (align :little-endian) (bytes 0))
+  (:lambda (a code) (declare (ignore a)) `(,bytes ,(apply #'concatenate 'list code))))
 
 ;; Parseq rule for processing the byte order in the format string
 (defrule alignment () (or #\< #\>)
@@ -172,86 +173,86 @@
 
 ;; Parseq rule for 'unpacking' padding bytes
 (defrule unpack-padding () (and reps "x")
-  (:external index)
+  (:external bytes)
   (:lambda (n c)
     (declare (ignore c))
-    (incf index n)
+    (incf bytes n)
     nil))
 
 ;; Parseq rule for 'packing' padding bytes
 (defrule pack-padding () (and reps "x")
-  (:external index)
+  (:external bytes)
   (:lambda (n c)
     (declare (ignore c))
-    (incf index n)
+    (incf bytes n)
     (loop for i below n collect `(nil nil (0)))))
 
 ;; Parseq rule for unpacking characters
 (defrule unpack-char (array-var) (and reps "c")
-  (:external index)
+  (:external bytes)
   (:lambda (n c)
     (declare (ignore c))
-    (loop for i below n collect `(code-char (elt ,array-var ,(post-incf index))))))
+    (loop for i below n collect `(code-char (elt ,array-var ,(post-incf bytes))))))
 
 ;; Parseq rule for packing characters
 (defrule pack-char () (and reps "c")
-  (:external index)
+  (:external bytes)
   (:lambda (n c)
     (declare (ignore c))
-    (incf index n)
+    (incf bytes n)
     (loop for i below n for var = (gensym) collect `(,var (character-limit ,var) ((char-code ,var))))))
 
 ;; Parseq rule for unpacking strings
 (defrule unpack-string (array-var) (and reps "s")
-  (:external index)
+  (:external bytes)
   (:lambda (n c)
     (declare (ignore c))
-    `((concatenate 'string ,@(loop for i below n collect `(list (code-char (elt ,array-var ,(post-incf index)))))))))
+    `((concatenate 'string ,@(loop for i below n collect `(list (code-char (elt ,array-var ,(post-incf bytes)))))))))
 
 ;; Parseq rule for packing strings
 (defrule pack-string () (and reps "s")
-  (:external index)
+  (:external bytes)
   (:lambda (n c)
     (declare (ignore c))
-    (incf index n)
+    (incf bytes n)
     (let ((var (gensym)))
       `((,var (map 'string #'character-limit ,var) ,(loop for i below n collect `(char-code (elt ,var ,i))))))))
 
 ;; Parseq rule for unpacking boolean values
 (defrule unpack-bool (array-var) (and reps "?")
-  (:external index)
+  (:external bytes)
   (:lambda (n c)
     (declare (ignore c))
-    (loop for i below n collect `(not (zerop (elt ,array-var ,(post-incf index)))))))
+    (loop for i below n collect `(not (zerop (elt ,array-var ,(post-incf bytes)))))))
 
 ;; Parseq rule for packing boolean values
 (defrule pack-bool () (and reps "?")
-  (:external index)
+  (:external bytes)
   (:lambda (n c)
     (declare (ignore c))
-    (incf index n)
+    (incf bytes n)
     (loop for i below n for var = (gensym) collect `(,var (identity ,var) ((if ,var 1 0))))))
 
 ;; Macro that helps defining unpack rules for the different integer types
 (defmacro define-integer-unpack-rule (character length signedness variable)
   `(defrule ,variable (array-var) (and reps ,character)
-     (:external align index)
+     (:external align bytes)
      (:lambda (n c)
        (declare (ignore c))
        ,(case signedness
-         (:unsigned `(loop for i below n collect (unpack-unsigned array-var (post-incf index ,length) ,length align)))
-         (:signed `(loop for i below n collect (unpack-signed array-var (post-incf index ,length) ,length align)))
+         (:unsigned `(loop for i below n collect (unpack-unsigned array-var (post-incf bytes ,length) ,length align)))
+         (:signed `(loop for i below n collect (unpack-signed array-var (post-incf bytes ,length) ,length align)))
          (t (error "Invalid signedness specified!"))))))
 
 ;; Macro that helps defining pack rules for the different integer types
 (defmacro define-integer-pack-rule (character length signedness variable)
   `(defrule ,variable () (and reps ,character)
-     (:external align index)
+     (:external align bytes)
      (:lambda (n c)
        (declare (ignore c))
        ,(case signedness
-         (:unsigned `(loop for i below n collect (pack-unsigned (post-incf index ,length) ,length align)))
-         (:signed `(loop for i below n collect (pack-signed (post-incf index ,length) ,length align)))
+         (:unsigned `(loop for i below n collect (pack-unsigned (post-incf bytes ,length) ,length align)))
+         (:signed `(loop for i below n collect (pack-signed (post-incf bytes ,length) ,length align)))
          (t (error "Invalid signedness specified!"))))))
 
 ;; Use the helper macro to define the integer type unpack rules
