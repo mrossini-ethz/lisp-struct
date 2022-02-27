@@ -31,6 +31,26 @@
       (is (array= #(120 65 66 67 121) (lisp-struct:pack ">c3sc" '(#\x "ABC" #\y))))
       (is (array= #(120 65 66 67 121) (lisp-struct:pack "<c3sc" '(#\x "ABC" #\y)))))
 
+(test (padding-test :depends-on character-tests)
+      ;; Unpack
+      (is (equal '() (lisp-struct:unpack ">x" #(65))))
+      (is (equal '() (lisp-struct:unpack "<x" #(65))))
+      (is (equal '() (lisp-struct:unpack ">xxx" #(65 66 67))))
+      (is (equal '() (lisp-struct:unpack "<xxx" #(65 66 67))))
+      (is (equal '() (lisp-struct:unpack ">3x" #(65 66 67))))
+      (is (equal '() (lisp-struct:unpack "<3x" #(65 66 67))))
+      (is (equal '(#\A #\B #\C) (lisp-struct:unpack ">xcxcxcx" #(119 65 120 66 121 67 122))))
+      (is (equal '(#\A #\B #\C) (lisp-struct:unpack "<xcxcxcx" #(119 65 120 66 121 67 122))))
+      ;; Pack
+      (is (array= #(0) (lisp-struct:pack ">x" '())))
+      (is (array= #(0) (lisp-struct:pack "<x" '())))
+      (is (array= #(0 0 0) (lisp-struct:pack ">xxx" '())))
+      (is (array= #(0 0 0) (lisp-struct:pack "<xxx" '())))
+      (is (array= #(0 0 0) (lisp-struct:pack ">3x" '())))
+      (is (array= #(0 0 0) (lisp-struct:pack "<3x" '())))
+      (is (array= #(0 65 0 66 0 67 0) (lisp-struct:pack ">xcxcxcx" '(#\A #\B #\C))))
+      (is (array= #(0 65 0 66 0 67 0) (lisp-struct:pack "<xcxcxcx" '(#\A #\B #\C)))))
+
 (test conversion-tests
       ;; unsigned to signed, 8 bits
       (is (= 0 (lisp-struct::unsigned-to-signed 0 1)))

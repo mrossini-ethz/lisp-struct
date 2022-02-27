@@ -143,7 +143,8 @@
   (:lambda (&rest n) (if n (first n) 1)))
 
 ;; Parseq rule for unpacking the individual data type elements of the format string
-(defrule unpack-format-char (array-var) (or (unpack-char array-var)
+(defrule unpack-format-char (array-var) (or unpack-padding
+                                            (unpack-char array-var)
                                             (unpack-string array-var)
                                             (unpack-unsigned-char array-var)
                                             (unpack-signed-char array-var)
@@ -155,7 +156,8 @@
                                             (unpack-signed-long-long array-var)))
 
 ;; Parseq rule for packing the individual data type elements of the format string
-(defrule pack-format-char () (or (pack-char)
+(defrule pack-format-char () (or (pack-padding)
+                                 (pack-char)
                                  (pack-string)
                                  (pack-unsigned-char)
                                  (pack-signed-char)
@@ -165,6 +167,22 @@
                                  (pack-signed-long)
                                  (pack-unsigned-long-long)
                                  (pack-signed-long-long)))
+
+;; Parseq rule for 'unpacking' padding bytes
+(defrule unpack-padding () (and reps "x")
+  (:external index)
+  (:lambda (n c)
+    (declare (ignore c))
+    (incf index n)
+    nil))
+
+;; Parseq rule for 'packing' padding bytes
+(defrule pack-padding () (and reps "x")
+  (:external index)
+  (:lambda (n c)
+    (declare (ignore c))
+    (incf index n)
+    (loop for i below n collect `(nil nil (0)))))
 
 ;; Parseq rule for unpacking characters
 (defrule unpack-char (array-var) (and reps "c")
@@ -269,9 +287,10 @@
       (f-error argument-error () "Invalid format string!"))
     (destructuring-bind (bytes code) result
       `(let ((,values ,value-list))
-         (when (/= (length ,values) ,(length code))
-           (f-error argument-error () "Invalid number of values. Expected: ~a" ,(length code)))
-         (destructuring-bind ,(mapcar #'first code) ,values
+         (when (/= (length ,values) ,(count-if-not #'null code :key #'first))
+           (f-error argument-error () "Invalid number of values. Expected: ~a" ,(count-if-not #'null code :key #'first)))
+         (destructuring-bind ,(remove nil (mapcar #'first code)) ,values
            ;; Convert values and check limits
-           ,@(loop for c in code for i upfrom 0 collect `(setf ,(first c) ,(second c)))
+           ,@(loop for c in code for i upfrom 0 when (first c) collect `(setf ,(first c) ,(second c)))
+           ;; Create the byte array
            (make-array ,bytes :element-type '(unsigned-byte 8) :initial-contents (list ,@(loop for c in code append (third c)))))))))
