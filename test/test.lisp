@@ -31,7 +31,7 @@
       (is (array= #(120 65 66 67 121) (lisp-struct:pack ">c3sc" '(#\x "ABC" #\y))))
       (is (array= #(120 65 66 67 121) (lisp-struct:pack "<c3sc" '(#\x "ABC" #\y)))))
 
-(test (padding-test :depends-on character-tests)
+(test (padding-tests :depends-on character-tests)
       ;; Unpack
       (is (equal '() (lisp-struct:unpack ">x" #(65))))
       (is (equal '() (lisp-struct:unpack "<x" #(65))))
@@ -50,6 +50,30 @@
       (is (array= #(0 0 0) (lisp-struct:pack "<3x" '())))
       (is (array= #(0 65 0 66 0 67 0) (lisp-struct:pack ">xcxcxcx" '(#\A #\B #\C))))
       (is (array= #(0 65 0 66 0 67 0) (lisp-struct:pack "<xcxcxcx" '(#\A #\B #\C)))))
+
+(test (boolean-tests :depends-on character-tests)
+      ;; Unpack
+      (is (equal '(nil) (lisp-struct:unpack ">?" #(0))))
+      (is (equal '(nil) (lisp-struct:unpack "<?" #(0))))
+      (is (equal '(t) (lisp-struct:unpack ">?" #(1))))
+      (is (equal '(t) (lisp-struct:unpack ">?" #(2))))
+      (is (equal '(t) (lisp-struct:unpack ">?" #(255))))
+      (is (equal '(t) (lisp-struct:unpack "<?" #(1))))
+      (is (equal '(t) (lisp-struct:unpack "<?" #(2))))
+      (is (equal '(t) (lisp-struct:unpack "<?" #(255))))
+      (is (equal '(t nil t) (lisp-struct:unpack "<???" #(4 0 200))))
+      (is (equal '(t nil t) (lisp-struct:unpack ">???" #(4 0 200))))
+      (is (equal '(t nil t) (lisp-struct:unpack "<3?" #(4 0 200))))
+      (is (equal '(t nil t) (lisp-struct:unpack ">3?" #(4 0 200))))
+      ;; Pack
+      (is (array= #(0) (lisp-struct:pack ">?" '(nil))))
+      (is (array= #(0) (lisp-struct:pack "<?" '(nil))))
+      (is (array= #(1) (lisp-struct:pack "<?" '(t))))
+      (is (array= #(1) (lisp-struct:pack ">?" '(t))))
+      (is (array= #(1 0 1) (lisp-struct:pack ">???" '(t nil t))))
+      (is (array= #(1 0 1) (lisp-struct:pack "<???" '(t nil t))))
+      (is (array= #(1 0 1) (lisp-struct:pack ">3?" '(t nil t))))
+      (is (array= #(1 0 1) (lisp-struct:pack "<3?" '(t nil t)))))
 
 (test conversion-tests
       ;; unsigned to signed, 8 bits
