@@ -157,18 +157,18 @@
                                             (unpack-signed-long-long array-var)))
 
 ;; Parseq rule for packing the individual data type elements of the format string
-(defrule pack-format-char () (or (pack-padding)
-                                 (pack-char)
-                                 (pack-string)
-                                 (pack-bool)
-                                 (pack-unsigned-char)
-                                 (pack-signed-char)
-                                 (pack-unsigned-short)
-                                 (pack-signed-short)
-                                 (pack-unsigned-long)
-                                 (pack-signed-long)
-                                 (pack-unsigned-long-long)
-                                 (pack-signed-long-long)))
+(defrule pack-format-char () (or pack-padding
+                                 pack-char
+                                 pack-string
+                                 pack-bool
+                                 pack-unsigned-char
+                                 pack-signed-char
+                                 pack-unsigned-short
+                                 pack-signed-short
+                                 pack-unsigned-long
+                                 pack-signed-long
+                                 pack-unsigned-long-long
+                                 pack-signed-long-long))
 
 ;; Parseq rule for 'unpacking' padding bytes
 (defrule unpack-padding () (and reps "x")
