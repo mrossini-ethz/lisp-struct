@@ -144,6 +144,7 @@
 
 ;; Parseq rule for unpacking the individual data type elements of the format string
 (defrule unpack-format-char (array-var) (or (unpack-char array-var)
+                                            (unpack-string array-var)
                                             (unpack-unsigned-char array-var)
                                             (unpack-signed-char array-var)
                                             (unpack-unsigned-short array-var)
@@ -155,6 +156,7 @@
 
 ;; Parseq rule for packing the individual data type elements of the format string
 (defrule pack-format-char () (or (pack-char)
+                                 (pack-string)
                                  (pack-unsigned-char)
                                  (pack-signed-char)
                                  (pack-unsigned-short)
@@ -171,12 +173,29 @@
     (declare (ignore c))
     (loop for i below n collect `(code-char (elt ,array-var ,(post-incf index))))))
 
+;; Parseq rule for packing characters
 (defrule pack-char () (and reps "c")
   (:external index)
   (:lambda (n c)
     (declare (ignore c))
     (incf index n)
     (loop for i below n for var = (gensym) collect `(,var (character-limit ,var) ((char-code ,var))))))
+
+;; Parseq rule for unpacking strings
+(defrule unpack-string (array-var) (and reps "s")
+  (:external index)
+  (:lambda (n c)
+    (declare (ignore c))
+    `((concatenate 'string ,@(loop for i below n collect `(list (code-char (elt ,array-var ,(post-incf index)))))))))
+
+;; Parseq rule for packing strings
+(defrule pack-string () (and reps "s")
+  (:external index)
+  (:lambda (n c)
+    (declare (ignore c))
+    (incf index n)
+    (let ((var (gensym)))
+      `((,var (map 'string #'character-limit ,var) ,(loop for i below n collect `(char-code (elt ,var ,i))))))))
 
 ;; Macro that helps defining unpack rules for the different integer types
 (defmacro define-integer-unpack-rule (character length signedness variable)

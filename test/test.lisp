@@ -17,6 +17,20 @@
       (is (array= #(65 66 67) (lisp-struct:pack ">3c" '(#\A #\B #\C))))
       (is (array= #(65 66 67) (lisp-struct:pack "<3c" '(#\A #\B #\C)))))
 
+(test (string-tests :depends-on character-tests)
+      (is (equal '("A") (lisp-struct:unpack ">s" #(65))))
+      (is (equal '("A") (lisp-struct:unpack "<s" #(65))))
+      (is (equal '("ABC") (lisp-struct:unpack ">3s" #(65 66 67))))
+      (is (equal '("ABC") (lisp-struct:unpack "<3s" #(65 66 67))))
+      (is (equal '(#\x "ABC" #\y) (lisp-struct:unpack ">c3sc" #(120 65 66 67 121))))
+      (is (equal '(#\x "ABC" #\y) (lisp-struct:unpack "<c3sc" #(120 65 66 67 121))))
+      (is (array= #(65) (lisp-struct:pack ">s" '("A"))))
+      (is (array= #(65) (lisp-struct:pack "<s" '("A"))))
+      (is (array= #(65 66 67) (lisp-struct:pack ">3s" '("ABC"))))
+      (is (array= #(65 66 67) (lisp-struct:pack "<3s" '("ABC"))))
+      (is (array= #(120 65 66 67 121) (lisp-struct:pack ">c3sc" '(#\x "ABC" #\y))))
+      (is (array= #(120 65 66 67 121) (lisp-struct:pack "<c3sc" '(#\x "ABC" #\y)))))
+
 (test conversion-tests
       ;; unsigned to signed, 8 bits
       (is (= 0 (lisp-struct::unsigned-to-signed 0 1)))
