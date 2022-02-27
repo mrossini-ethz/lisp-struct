@@ -231,7 +231,7 @@
   (:lambda (n c)
     (declare (ignore c))
     (incf bytes n)
-    (loop for i below n for var = (gensym) collect `(,var (identity ,var) ((if ,var 1 0))))))
+    (loop for i below n for var = (gensym) collect `(,var nil ((if ,var 1 0))))))
 
 ;; Macro that helps defining unpack rules for the different integer types
 (defmacro define-integer-unpack-rule (character length signedness variable)
@@ -304,11 +304,12 @@
     (unless result
       (f-error argument-error () "Invalid format string!"))
     (destructuring-bind (bytes code) result
-      `(let ((,values ,value-list))
-         (when (/= (length ,values) ,(count-if-not #'null code :key #'first))
-           (f-error argument-error () "Invalid number of values. Expected: ~a" ,(count-if-not #'null code :key #'first)))
-         (destructuring-bind ,(remove nil (mapcar #'first code)) ,values
-           ;; Convert values and check limits
-           ,@(loop for c in code for i upfrom 0 when (first c) collect `(setf ,(first c) ,(second c)))
-           ;; Create the byte array
-           (make-array ,bytes :element-type '(unsigned-byte 8) :initial-contents (list ,@(loop for c in code append (third c)))))))))
+      (let ((args (count-if-not #'null code :key #'first)))
+        `(let ((,values ,value-list))
+           (when (/= (length ,values) ,args)
+             (f-error argument-error () "Invalid number of values. Expected: ~a" ,args))
+           (destructuring-bind ,(remove nil (mapcar #'first code)) ,values
+             ;; Convert values and check limits
+             ,@(loop for c in code for a = (first c) for b = (second c) when (and a b) collect `(setf ,a ,b))
+             ;; Create the byte array
+             (make-array ,bytes :element-type '(unsigned-byte 8) :initial-contents (list ,@(loop for c in code append (third c))))))))))
